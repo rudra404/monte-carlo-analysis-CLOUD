@@ -1,0 +1,54 @@
+
+<div id="down">
+
+<h4>Please enter your analysis parameters</h4>
+<form id="inputform" method="post" action="/calculate">
+
+<label for="num_h">Enter length of price history in number of days (H):</label>
+<input type="number" id="num_h" name="num_h">
+    {% if note1 %}
+<span id="note1">
+        {{ note1 }}
+</span>
+    {% endif %}
+
+<br><br>
+
+<label for="num_d">Enter number of shots used per R (D):</label>
+<input type="number" id="num_d" name="num_d">
+    {% if note2 %}
+<span id="note2">
+        {{ note2 }}
+</span>
+    {% endif %}
+
+<br><br>
+
+<label for="select_signal">Select type of signal (T):</label>
+<select id="select_signal" name="select_signal">
+<option value="buy">Buy</option>
+<option value="sell">Sell</option>
+</select>
+
+<br><br>
+
+<label for="num_p">Enter profitibility time horizon in number of days (P):</label>
+<input type="number" id="num_p" name="num_p">
+    {% if note3 %}
+<span id="note3">
+        {{ note3 }}
+</span>
+    {% endif %}
+    
+<br><br>
+
+<input type="submit" value="Calculate">
+<input type="button" value="Cancel" onclick="window.location='/';">
+
+<br>
+</form>
+
+
+</div>
+
+

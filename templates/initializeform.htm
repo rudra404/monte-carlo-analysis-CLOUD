@@ -1,0 +1,27 @@
+
+<div id="down">
+<h4>Choose options to initialize the system</h4>
+<form id="initform" method="post" action="/initialize">
+<label for="select_service">Select type of scalable service (S):</label>
+<select id="select_service" name="select_service">
+<option value="lambda">Lambda</option>
+<option value="ec2">EC2</option>
+</select>
+<br><br>
+<label for="num_r">Enter number of resources (R):</label>
+<input type="number" id="num_r" name="num_r">
+    {% if note %}
+<span id="note">
+        {{ note }}
+</span>
+    {% endif %}
+<br><br>
+<input type="submit" value="Initialize">
+<input type="button" value="Cancel" onclick="window.location='/';">
+<br>
+</form>
+
+
+</div>
+
+
