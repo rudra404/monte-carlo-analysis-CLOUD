@@ -16,10 +16,8 @@ decadeAgo = today - timedelta(days=1095)
 # Get stock data from Yahoo Finance – here, Gamestop which had an interesting
 #time in 2021: https://en.wikipedia.org/wiki/GameStop_short_squeeze
 
-data = pdr.get_data_yahoo('GME', start=decadeAgo, end=today)
-
-# Other symbols: TSLA – Tesla, AMZN – Amazon, ZM – Zoom, ETH-USD – Ethereum-Dollar etc.
-
+data = pdr.get_data_yahoo('NFLX', start=decadeAgo, end=today) # get data for NETFLIX
+print(data.index[0])
 # Add two columns to this to allow for Buy and Sell signals
 # fill with zero
 data['Buy']=0
@@ -41,7 +39,7 @@ and (data.Close[i-1] - data.Open[i-1]) >= body  \
 and data.Close[i-1] > data.Close[i-2]  \
 and (data.Close[i-2] - data.Open[i-2]) >= body:
         data.at[data.index[i], 'Buy'] = 1
-        #print("Buy at ", data.index[i])
+        print("Buy at ", data.index[i])
 
        # Three Crows
     if (data.Open[i] - data.Close[i]) >= body  \
@@ -50,7 +48,7 @@ and (data.Open[i-1] - data.Close[i-1]) >= body  \
 and data.Close[i-1] < data.Close[i-2]  \
 and (data.Open[i-2] - data.Close[i-2]) >= body:
         data.at[data.index[i], 'Sell'] = 1
-        #print("Sell at ", data.index[i])
+        print("Sell at ", data.index[i])
 
 # Data now contains signals, so we can pick signals with a minimum amount
 # of historic data, and use shots for the amount of simulated values
