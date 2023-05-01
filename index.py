@@ -3,6 +3,8 @@ import logging
 
 from flask import Flask, request, render_template
 
+from calculate import fetch_stock_data, find_signals, calculate
+
 app = Flask(__name__)
 
 # various Flask explanations available at:  https://flask.palletsprojects.com/en/1.1.x/quickstart/
@@ -22,10 +24,18 @@ def hello():
 @app.route('/calculate', methods=['POST'])
 def calculateHandler():
 	if request.method == 'POST':
-		h = request.form.get('num_h')
-		d = request.form.get('num_d')
+
+		h = int(request.form.get('num_h'))
+		d = int(request.form.get('num_d'))
 		t = request.form.get('select_signal')
-		p = request.form.get('num_p')
+		p = int(request.form.get('num_p'))
+
+
+		print("h:", h, type(h))
+		print("d:", d, type(d))
+		print("t:", t, type(t))
+		print("p:", p, type(p))
+
 
 		# Check if inputs are correct
 		note1 = ''
@@ -41,7 +51,10 @@ def calculateHandler():
 		if note1 or note2 or note3:
 			return doRender('index.htm', {'note1': note1, 'note2': note2, 'note3': note3})
 		else:
-			return 'Calculation stuff here'
+			data = fetch_stock_data()
+			find_signals(data, t)
+			result_list, total_pnl, avg_var95, avg_var99 = calculate(data, h, d, t, p)
+			return doRender('results.htm', {'result_list': result_list, 'total_pnl': total_pnl, 'avg_var95': avg_var95, 'avg_var99': avg_var99})
 			
 	return 'Should not ever get here'
 	

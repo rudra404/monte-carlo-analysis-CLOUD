@@ -1,0 +1,31 @@
+{% extends "_base.htm" %}
+
+{% block title %}
+    RESULTS
+{% endblock %}
+
+{% block pageblock %}
+    <div id="up">
+        <h1>Results</h1>
+    </div>
+    
+    <div id="content">
+        <h2>Results Table</h2>
+        <table>
+            {% for row in result_list %}
+                <tr>
+                    {% for item in row %}
+                        <td>{{ item }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </table>
+        
+        <h2>Summary</h2>
+        <ul>
+            <li>Total PnL: {{ total_pnl }}</li>
+            <li>Average Risk99: {{ avg_var95 }}</li>
+            <li>Average Risk95: {{ avg_var99 }}</li>
+        </ul>
+    </div>
+{% endblock %}
