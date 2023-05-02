@@ -1,8 +1,24 @@
 
 <div id="down">
 
-<h4>Please enter your analysis parameters</h4>
+<h4>Choose options to initialize the system</h4>
 <form id="inputform" method="post" action="/calculate">
+<label for="select_service">Select type of scalable service (S):</label>
+<select id="select_service" name="select_service">
+<option value="lambda">Lambda</option>
+<option value="ec2">EC2</option>
+</select>
+<br><br>
+<label for="num_r">Enter number of resources (R):</label>
+<input type="number" id="num_r" name="num_r">
+    {% if note %}
+<span id="note">
+        {{ note }}
+</span>
+    {% endif %}
+<br><br>
+
+<h4>Please enter your analysis parameters</h4>
 
 <label for="num_h">Enter length of price history in number of days (H):</label>
 <input type="number" id="num_h" name="num_h">

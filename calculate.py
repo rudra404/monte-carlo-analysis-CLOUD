@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# import required libraries
 import math
 import random
 import yfinance as yf
@@ -9,6 +9,7 @@ from pandas_datareader import data as pdr
 # override yfinance with pandas – seems to be a common step
 yf.pdr_override()
 
+# define a function to fetch stock data from yfinance and convert to list format
 def fetch_stock_data():
     # Get stock data from Yahoo Finance – here, asking for about 3 years
     today = date.today()
@@ -23,9 +24,11 @@ def fetch_stock_data():
     data_list = []
     for index, row in data.iterrows():
         data_list.append([index.date(), row['Open'], row['High'], row['Low'], row['Close'], row['Adj Close'], row['Volume'], 0, 0])
+        # add columns for BUY and SELL signals
 
     return data_list
 
+# define function to identify buy and sell signals in the data
 def find_signals(data, signaltype):
     # Find the signals
     for i in range(2, len(data)):
@@ -50,7 +53,7 @@ def find_signals(data, signaltype):
                 #print("Sell at ", data[i][0])
     return data
 
-
+# define a function for all calculation
 def calculate(data, minhistory, shots, signaltype, P):
 
     # create empty lists to store the results
@@ -60,12 +63,12 @@ def calculate(data, minhistory, shots, signaltype, P):
     pnl_values = []
 
     for i in range(minhistory, len(data)):
-        if (i+P) < len(data):
-            if signaltype=="Buy" and data[i][7]==1: # if we’re interested in Buy or Sell signals
+        if (i+P) < len(data): # this ignores signals where we don't have price_p_days_forward
+            if signaltype=="Buy" and data[i][7]==1: # for buy signals
                 # calculate the mean and standard deviation of the price changes over the past minhistory days
-                changes = [data[j][4]/data[j-1][4] - 1 for j in range(i-minhistory, i)]
-                mean = sum(changes)/len(changes)
-                std = math.sqrt(sum([(x-mean)**2 for x in changes])/len(changes))
+                pct_changes = [data[j][4]/data[j-1][4] - 1 for j in range(i-minhistory, i)] # percent changes with previous closing price
+                mean = sum(pct_changes)/len(pct_changes)
+                std = math.sqrt(sum([(x-mean)**2 for x in pct_changes])/len(pct_changes))
                 
                 # generate much larger random number series with same broad characteristics
                 simulated = [random.gauss(mean,std) for x in range(shots)]
@@ -82,18 +85,18 @@ def calculate(data, minhistory, shots, signaltype, P):
                 
                 # calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
                 price_at_signal = data[i][4]
-                price_P_days_forward = data[i+P][4]
+                price_p_days_forward = data[i+P][4]
 
-                pnl_per_share = price_P_days_forward - price_at_signal
+                pnl_per_share = price_p_days_forward - price_at_signal
                 
                 # record the profit/loss per share
                 pnl_values.append(pnl_per_share)
             
             elif signaltype=="Sell" and data[i][8]==1:
                 # calculate the mean and standard deviation of the price changes over the past minhistory days
-                changes = [data[j][4]/data[j-1][4] - 1 for j in range(i-minhistory, i)]
-                mean = sum(changes)/len(changes)
-                std = math.sqrt(sum([(x-mean)**2 for x in changes])/len(changes))
+                pct_changes = [data[j][4]/data[j-1][4] - 1 for j in range(i-minhistory, i)] # percent changes with previous closing price
+                mean = sum(pct_changes)/len(pct_changes)
+                std = math.sqrt(sum([(x-mean)**2 for x in pct_changes])/len(pct_changes))
                 
                 # generate much larger random number series with same broad characteristics
                 simulated = [random.gauss(mean,std) for x in range(shots)]
@@ -110,18 +113,18 @@ def calculate(data, minhistory, shots, signaltype, P):
                 
                 # calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
                 price_at_signal = data[i][4]
-                price_P_days_forward = data[i+P][4]
-                pnl_per_share =  price_at_signal - price_P_days_forward
+                price_p_days_forward = data[i+P][4]
+                pnl_per_share =  price_at_signal - price_p_days_forward
                 
                 # record the profit/loss per share
                 pnl_values.append(pnl_per_share)
 
-    # create a list of lists to store the results
+    # create a list of lists to store the results - avoiding pandas dataframes
     result_list = [['Signal Date', 'Risk 95%', 'Risk 99%', 'Profit/Loss per Share']]
     for i in range(len(signal_dates)):
         result_list.append([signal_dates[i], risk95_values[i], risk99_values[i], pnl_values[i]])
 
-        # calculate the total profit (or loss)
+        # calculate the total profit/loss and average risk values
     total_pnl = sum(pnl_values)
     avg_var95 = sum(risk95_values) / len(risk95_values)
     avg_var99 = sum(risk99_values) / len(risk99_values)
