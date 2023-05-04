@@ -117,13 +117,7 @@ def calculateHandler():
 					avg_var99_values_str = ','.join(str(v) for v in avg_var99_values)
 
 					img_url = f"https://quickchart.io/chart/render/zm-f285fd40-0b04-481b-a408-84fb4b705c8c?labels={signal_dates_str}&data1={risk95_values_str}&data2={risk99_values_str}&data3={avg_var95_values_str}&data4={avg_var99_values_str}"
-					# img_url = f"https://quickchart.io/chart/render/zm-0fa28e6d-70c1-4be9-b4db-47aebbdb8b4c?labels={signal_dates}&data1={risk95_values_str}&data2={risk99_values_str}"
-					# img_url = f"https://image-charts.com/chart?cht=lc&chd=t:{risk95_values_str}|{risk99_values_str}|{str(avg_var95)}|{str(avg_var99)}&chm=o,0066FF,0,-1,2|o,FF6600,1,-1,2&chds=a&chs=600x300&chxt=x,y&chxl=0:|{selected_dates_str}&chxs=0,000000,11.5,90&chdl=Risk+95%|Risk+99%|Avg+95%|Avg+99%&chco=FF0000,0000FF"
-					# H,FF6600,0,{avg_var99},600|H,FF6600,0,{avg_var95},600
-					# img_url = f"https://chart.googleapis.com/chart?cht=lc&chd=t:{risk95_values_str}|{risk99_values_str}|&chm=o,0066FF,0,-1,2|o,FF6600,1,-1,2&chs=600x300&chxt=x,y&chxl=0:|{selected_dates_str}&chxs=0,000000,11.5,90&chdl=Risk+95%|Risk+99%|Avg+95%|Avg+99%&chco=FF0000,0000FF"
-					# img_url = f"https://chart.googleapis.com/chart?cht=lc&chs=600x300&chd=t:{risk95_values_str}|{risk99_values_str}|{str(avg_var95)}|{str(avg_var99)}&chm=o,0066FF,0,-1,2|o,FF6600,1,-1,2&chxt=x,y&chxl=0:|{selected_dates_str}&chxs=0,000000,11.5,90&chdl=Risk+95%|Risk+99%&chco=FF0000,0000FF"
-					# img_url = f"https://quickchart.io/chart?c={type:'line',data:{labels:[{selected_dates}],datasets:[{label:'Risk 95%',data:[{risk95_values}],fill:false,borderColor:'red'},{label:'Risk 99%',data:[{risk99_values}],fill:false,borderColor:'blue'},{label:'Average 95%',data:[{avg_var95}],fill:false,borderColor:'orange',borderDash:[10,5]},{label:'Average 99%',data:[{avg_var99}],fill:false,borderColor:'green',borderDash:[10,5]}]},options:{scales:{yAxes:[{ticks:{beginAtZero:true}}]},title:{display:true,text:'Risk Analysis'},elements:{line:{tension:0}}}}&width=600&height=300"
-					# https://quickchart.io/chart-maker/edit/zm-c3786dd9-00d3-4328-a5ac-7eefe38ac123
+
 			# display results using a new template results.htm
 			return doRender('results.htm', {'result_list': result_list, 'total_pnl': total_pnl, 'avg_var95': avg_var95, 'avg_var99': avg_var99, 'img_url': img_url})
 			
