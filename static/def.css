@@ -30,14 +30,14 @@ h3 {
 
 table {
 	border-collapse: collapse;
-	width: 50%;
+	width: 45%;
 	margin-bottom: 20px;
 	margin-left: 20px;
   }
   
 td {
-	text-align: left;
-	padding: 8px;
+	/* text-align: left; */
+	padding: 4px;
 	border: 1px solid #ddd;
   }
 
@@ -47,14 +47,21 @@ table tr:first-child {
 	padding: 8px;
 	border: 2px solid #ddd;
 }
-  
+
+tr {
+	/* background-color: #2f420c; */
+	/* text-align: center; */
+	padding: 4px;
+	border: 1px solid #ddd;
+}
+
 tr:hover {
 	background-color: #2f420c;
   }
 
 IMG.displayed{
-	display: block;
-	margin-left: 200px;
+	display: inline;
+	margin-left: 20px;
 }
 
 #page {

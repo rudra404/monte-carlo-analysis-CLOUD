@@ -131,4 +131,69 @@ def calculate(data, minhistory, shots, signaltype, P):
 
     return (result_list, total_pnl, avg_var95, avg_var99)
 
+def averaging_lambda_results(results):
+    signal_dates = []
+    risk95_values = []
+    risk99_values = []
+    pnl_values = []
+
+    for i in range(len(results[0][0])):
+        signal_dates.append(results[0][0][i][0])
+
+    for i in range(len(results[0][0])):
+        avg = 0
+        for result in results:
+            # print(result[0][i][1])
+            avg = avg + result[0][i][1]
+        avg = avg / len(results)
+
+        risk95_values.append(avg)
+
+    for i in range(len(results[0][0])):
+        avg = 0
+        for result in results:
+            # print(result[0][i][2])
+            avg = avg + result[0][i][2]
+        avg = avg / len(results)
+
+        risk99_values.append(avg)
+
+    for i in range(len(results[0][0])):
+        avg = 0
+        for result in results:
+            # print(result[0][i][3])
+            avg = avg + result[0][i][3]
+        avg = avg / len(results)
+
+        pnl_values.append(avg)
+
+    # print(signal_dates)
+    result_list = [['Signal Date', 'Risk 95%', 'Risk 99%', 'Profit/Loss per Share']]
+    for i in range(len(signal_dates)):
+        result_list.append([signal_dates[i], risk95_values[i], risk99_values[i], pnl_values[i]])
+        # print(result_list)
+        # calculate the total profit/loss and average risk values
+    total_pnl = sum(pnl_values)
+    avg_var95 = sum(risk95_values) / len(risk95_values)
+    avg_var99 = sum(risk99_values) / len(risk99_values)
+
+    return (result_list, total_pnl, avg_var95, avg_var99)
+
+def make_img_url(result_list, avg_var95, avg_var99):
+    signal_dates = [row[0] for row in result_list[1:]]  # Extract signal dates
+    risk95_values = [row[1] for row in result_list[1:]]  # Extract Risk 95% values
+    risk99_values = [row[2] for row in result_list[1:]]  # Extract Risk 99% values
+    avg_var95_values = [avg_var95]*len(signal_dates)  # Create list of average 95 values
+    avg_var99_values = [avg_var99]*len(signal_dates)  # Create list of average 99 values
+    # selected_dates = [date for date in signal_dates if date.day == 1] # Only show the first date of every month
+    # selected_dates_str = ','.join([date.strftime('%Y-%m-%d') for date in selected_dates]) # Format dates as strings
+    signal_dates_str = ','.join([date.strftime('%Y-%m-%d') for date in signal_dates]) # Format dates as strings
+    risk95_values_str = ','.join([str(val) for val in risk95_values])
+    risk99_values_str = ','.join([str(val) for val in risk99_values])
+    avg_var95_values_str = ','.join(str(v) for v in avg_var95_values)
+    avg_var99_values_str = ','.join(str(v) for v in avg_var99_values)
+
+    img_url = f"https://quickchart.io/chart/render/zm-f285fd40-0b04-481b-a408-84fb4b705c8c?labels={signal_dates_str}&data1={risk95_values_str}&data2={risk99_values_str}&data3={avg_var95_values_str}&data4={avg_var99_values_str}"
+
+    return img_url
 
