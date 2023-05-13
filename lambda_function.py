@@ -1,0 +1,75 @@
+import json
+import random
+import math
+
+def lambda_handler(event, context):
+    minhistory = int(event['history'])
+    shots = int(event['shots'])
+    signaltype = str(event['signal_type'])
+    P = int(event['time_horizon'])
+    closing_prices = event['closing_prices']
+    buy_signals = event['buy_signals']
+    sell_signals = event['sell_signals']
+
+
+    print(minhistory, shots, signaltype, P)
+    print(buy_signals)
+    print(sell_signals)
+
+    # create empty lists to store the results
+    risk95_values = []
+    risk99_values = []
+
+    for i in range(minhistory, len(closing_prices)):
+        if (i+P) < len(closing_prices): # this ignores signals where we don't have price_p_days_forward
+            if signaltype=="Buy" and buy_signals[i]==1: # for buy signals
+                # calculate the mean and standard deviation of the price changes over the past minhistory days
+                pct_changes = [closing_prices[j]/closing_prices[j-1] - 1 for j in range(i-minhistory, i)] # percent changes with previous closing price
+                mean = sum(pct_changes)/len(pct_changes)
+                std = math.sqrt(sum([(x-mean)**2 for x in pct_changes])/len(pct_changes))
+                
+                # generate much larger random number series with same broad characteristics
+                simulated = [random.gauss(mean,std) for x in range(shots)]
+                
+                # sort and pick 95% and 99%  - not distinguishing long/short risks here
+                simulated.sort(reverse=True)
+                var95 = simulated[int(len(simulated)*0.95)]
+                var99 = simulated[int(len(simulated)*0.99)]
+                
+                # record the risk values
+                risk95_values.append(var95)
+                risk99_values.append(var99)
+
+            
+            elif signaltype=="Sell" and sell_signals[i]==1:
+                # calculate the mean and standard deviation of the price changes over the past minhistory days
+                pct_changes = [closing_prices[j]/closing_prices[j-1] - 1 for j in range(i-minhistory, i)] # percent changes with previous closing price
+                mean = sum(pct_changes)/len(pct_changes)
+                std = math.sqrt(sum([(x-mean)**2 for x in pct_changes])/len(pct_changes))
+                
+                # generate much larger random number series with same broad characteristics
+                simulated = [random.gauss(mean,std) for x in range(shots)]
+                
+                # sort and pick 95% and 99%  - not distinguishing long/short risks here
+                simulated.sort(reverse=True)
+                var95 = simulated[int(len(simulated)*0.95)]
+                var99 = simulated[int(len(simulated)*0.99)]
+                
+                # record the risk values
+                risk95_values.append(var95)
+                risk99_values.append(var99)
+                
+
+    return (risk95_values, risk99_values)
+
+
+###### TEST EVENT ######
+# {
+#   "history": "2",
+#   "shots": "100",
+#   "signal_type": "Buy",
+#   "time_horizon": "5",
+#   "closing_prices": "[1,11,12,13,14,69,420,666, 333, 3141, 161]",
+#   "buy_signals": "[0,1,0,0,1,1,1,0,0,1,1]",
+#   "sell_signals": "[1,0,1,1,0,0,0,1,1,0,0]"
+# }
