@@ -300,7 +300,7 @@ def averaging_lambda_results(results):
     return (result_list, total_pnl, avg_var95, avg_var99)
 
 ###### FUNCTIONS FOR EC2 ######
-# define a function to run ec2
+# define a function to initialize ec2 instances
 def launchec2(r):
     os.environ['AWS_SHARED_CREDENTIALS_FILE']='./cred' 
     # Above line needs to be here before boto3 to ensure cred file is read from the right place
@@ -315,17 +315,19 @@ def launchec2(r):
                 apt update -y
                 # Install required packages
                 apt install python3 apache2 -y
+                apt install python3-flask -y
                 # apt install python3-pandas -y
                 # Restart Apache
                 apache2ctl restart
                 # Copy files from public domain to instance - hosting these on GAE makes it very slow
                 wget https://gitlab.surrey.ac.uk/rs01922/montecarlo_cw_files/-/raw/main/apache2.conf -O /etc/apache2/apache2.conf
-                wget https://gitlab.surrey.ac.uk/rs01922/montecarlo_cw_files/-/raw/main/postform.py -P /var/www/html
+                wget https://gitlab.surrey.ac.uk/rs01922/montecarlo_cw_files/-/raw/main/ec2_function.py -P /var/www/html
                 # Set permissions
-                chmod 755 /var/www/html/postform.py
+                chmod 755 /var/www/html/ec2_function.py
                 # Enable CGI module and restart Apache
                 a2enmod cgi
-                service apache2 restart"""
+                service apache2 restart
+                FLASK_APP=/var/www/html/ec2_function.py flask run --host=0.0.0.0 &"""
     
 
     ec2 = boto3.resource('ec2', region_name='us-east-1')
@@ -339,15 +341,125 @@ def launchec2(r):
         SecurityGroups=['ssh'], # Make sure you have the named SSH
         UserData=user_data # and user-data
         )
-
+    public_dns_names = []
     # Wait for AWS to report instance(s) ready. 
     for i in instances:
-        print(i)
         i.wait_until_running()
         # Reload the instance attributes
         i.load()
+        public_dns_names.append(i.public_dns_name)
         print(i.public_dns_name) # ec2 com address
+    print(public_dns_names)
+    return public_dns_names
 
-    return '', 204
+# Function to run the simulation on an EC2 instance
+def useec2(public_dns_name, data, h, d, t, p):
+    # Collect only required columns
+    closing_prices = [data[i][4] for i in range(len(data))]
+    buy_signals = [data[i][7] for i in range(len(data))]
+    sell_signals = [data[i][8] for i in range(len(data))]
 
-    # Should add checks here that e.g. hello.py or index.html is responding
+    # Establish a connection to the EC2 instance
+    connection = http.client.HTTPConnection(str(public_dns_name))
+    print("EC222222222222222222")
+    print(public_dns_name)
+    print(type(public_dns_name))
+    # Create a JSON to send input data to the function
+    json_keys = {
+        "history": h,
+        "shots": d,
+        "signal_type": t,
+        "time_horizon": p,
+        "closing_prices": closing_prices,
+        "buy_signals": buy_signals,
+        "sell_signals": sell_signals
+    }
+    input_json = json.dumps(json_keys)
+
+    time.sleep(10)
+    # Send a POST request to the instance to run the simulation
+    connection.request("POST", "/work", input_json)
+    response = connection.getresponse()
+    ec2_out_data = response.read().decode('utf-8')
+    ec2_out_data = json.loads(ec2_out_data)
+
+    # Close the connection
+    # connection.close()
+
+    signal_dates = []
+    risk95_values = []
+    risk99_values = []
+    pnl_values = []
+
+    risk95_values = ec2_out_data[0]
+    risk99_values = ec2_out_data[1]
+
+    for i in range(h, len(data)):
+        if (i+p) < len(data): # this ignores signals where we don't have price_p_days_forward
+            if t=="Buy" and data[i][7]==1: # for buy signals
+                signal_dates.append(data[i][0]) # record the signal date
+                # calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
+                price_at_signal = data[i][4]
+                price_p_days_forward = data[i+p][4]
+                pnl_per_share = price_p_days_forward - price_at_signal
+                # record the profit/loss per share
+                pnl_values.append(pnl_per_share)
+            
+            elif t=="Sell" and data[i][8]==1:
+                signal_dates.append(data[i][0]) # record the signal date
+                # calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
+                price_at_signal = data[i][4]
+                price_p_days_forward = data[i+p][4]
+                pnl_per_share =  price_at_signal - price_p_days_forward
+                # record the profit/loss per share
+                pnl_values.append(pnl_per_share)
+
+    # create a list of lists to store the results - avoiding pandas dataframes
+    # result_list = [['Signal Date', 'Risk 95%', 'Risk 99%', 'Profit/Loss per Share']]
+    result_list = []
+
+    for i in range(len(signal_dates)):
+        result_list.append([signal_dates[i], risk95_values[i], risk99_values[i], pnl_values[i]])
+
+    # calculate the total profit/loss and average risk values
+    total_pnl = sum(pnl_values)
+    avg_var95 = sum(risk95_values) / len(risk95_values)
+    avg_var99 = sum(risk99_values) / len(risk99_values)
+
+    # print("USE LAMBDAAAAAAA")
+    # print([result_list, total_pnl, avg_var95, avg_var99])
+    return [result_list, total_pnl, avg_var95, avg_var99]
+    # return [result_list]
+
+# define a function to use multiple instances of ec2
+def useec2_parallel(data, h, d, t, p, r):
+    # Launch EC2 instances
+    public_dns_names = launchec2(r)
+    print("EC2 PARALLELLLLLLLLLLLLLLLLLLLLL")
+    print(public_dns_names)
+    print(type(public_dns_names[0]))
+    # Collect public DNS names of all instances
+    # public_dns_names = [i.public_dns_name for i in instances]
+
+    # Create a list to store the results from all instances
+    results = []
+
+    # Launch one thread for each instance to calculate the results
+    with ThreadPoolExecutor(max_workers=len(public_dns_names)) as executor:
+        futures = []
+        for public_dns_name in public_dns_names:
+            futures.append(executor.submit(useec2, public_dns_name, data, h, d, t, p))
+
+        # Wait for all threads to finish and collect the results
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            results.append(result)
+
+    # Combine the results from all instances
+    # combined_results = combine_results(results)
+
+    # Terminate all instances
+    # terminateec2(ec2_client, instances)
+
+    # Return the combined results
+    return results

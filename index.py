@@ -5,7 +5,7 @@ import logging
 from flask import Flask, request, render_template
 import time
 
-from functions import fetch_stock_data, find_signals, calculate, make_img_url, averaging_lambda_results, uselambda, uselambda_parallel, launchec2
+from functions import fetch_stock_data, find_signals, calculate, make_img_url, averaging_lambda_results, uselambda, uselambda_parallel, useec2_parallel, useec2
 # from globals import s,r
 
 app = Flask(__name__)
@@ -58,8 +58,8 @@ def calculateHandler():
 				# 	img_url = make_img_url(result_list, avg_var95, avg_var99)
 
 			elif s == 'ec2':
-				launchec2(r)
-				result_list, total_pnl, avg_var95, avg_var99 = calculate(data, h, d, t, p)
+				results = useec2_parallel(data, h, d, t, p, r)
+				result_list, total_pnl, avg_var95, avg_var99 = averaging_lambda_results(results)
 				# if result_list:
 				# 	img_url = make_img_url(result_list, avg_var95, avg_var99)
 					
