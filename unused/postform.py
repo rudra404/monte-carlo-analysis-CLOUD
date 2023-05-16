@@ -1,3 +1,4 @@
+'''
 #!/usr/bin/python3
 
 import os
@@ -27,3 +28,4 @@ print("""
 </body>
 </html>
 """)
+'''

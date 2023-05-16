@@ -3,7 +3,7 @@
 import math
 import random
 import yfinance as yf
-import pandas as pd
+# import pandas as pd
 from datetime import date, timedelta
 from pandas_datareader import data as pdr
 #lambda imports
@@ -14,6 +14,12 @@ import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 #ec2 imports
 import os
+
+# import paramiko
+import requests
+os.environ['AWS_SHARED_CREDENTIALS_FILE']='./cred' 
+
+import boto3
 
 # override yfinance with pandas – seems to be a common step
 yf.pdr_override()
@@ -315,8 +321,6 @@ def launchec2(r):
                 apt update -y
                 # Install required packages
                 apt install python3 apache2 -y
-                apt install python3-flask -y
-                # apt install python3-pandas -y
                 # Restart Apache
                 apache2ctl restart
                 # Copy files from public domain to instance - hosting these on GAE makes it very slow
@@ -326,8 +330,7 @@ def launchec2(r):
                 chmod 755 /var/www/html/ec2_function.py
                 # Enable CGI module and restart Apache
                 a2enmod cgi
-                service apache2 restart
-                FLASK_APP=/var/www/html/ec2_function.py flask run --host=0.0.0.0 &"""
+                service apache2 restart"""
     
 
     ec2 = boto3.resource('ec2', region_name='us-east-1')
@@ -359,11 +362,8 @@ def useec2(public_dns_name, data, h, d, t, p):
     buy_signals = [data[i][7] for i in range(len(data))]
     sell_signals = [data[i][8] for i in range(len(data))]
 
-    # Establish a connection to the EC2 instance
-    connection = http.client.HTTPConnection(str(public_dns_name))
-    print("EC222222222222222222")
-    print(public_dns_name)
-    print(type(public_dns_name))
+    # input_key = public_dns_name+h+d+t+p+'inputparameters'+'.json'
+    # output_key = public_dns_name+h+d+t+p+'simulationresults'+'.json'
     # Create a JSON to send input data to the function
     json_keys = {
         "history": h,
@@ -374,26 +374,82 @@ def useec2(public_dns_name, data, h, d, t, p):
         "buy_signals": buy_signals,
         "sell_signals": sell_signals
     }
-    input_json = json.dumps(json_keys)
-
-    time.sleep(10)
-    # Send a POST request to the instance to run the simulation
-    connection.request("POST", "/work", input_json)
-    response = connection.getresponse()
-    ec2_out_data = response.read().decode('utf-8')
-    ec2_out_data = json.loads(ec2_out_data)
-
-    # Close the connection
-    # connection.close()
-
+        #     "input_key": input_key,
+        # "output_key": output_key
+    # create empty lists to store the results
     signal_dates = []
     risk95_values = []
     risk99_values = []
     pnl_values = []
 
-    risk95_values = ec2_out_data[0]
-    risk99_values = ec2_out_data[1]
+    url = 'http://' + public_dns_name + '/ec2_function.py'
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(url, headers=headers, data=json.dumps(json_keys))
 
+    if response.status_code != 200:
+        print('Error:', response.status_code)
+        return None
+
+    if not response.text:
+        print('Error: Response is empty')
+        return None
+
+
+    response_data = json.loads(response.text)
+
+    risk95_values = response_data['risk95_values']
+    risk99_values = response_data['risk99_values']
+
+
+
+
+    '''
+    s3 = boto3.client('s3')
+    input_json = json.dumps(json_keys)
+    s3.put_object(Bucket='ec2-function-input',Key=input_key, Body=input_json)
+    # Write input JSON to a file
+    # with open('input.json', 'w') as f:
+    #     json.dump(json_keys, f)
+
+    # Upload the input file to S3 bucket
+    # s3.upload_file('input.json', bucket_name, input_key)
+
+    # Establish a connection to the EC2 instance using SSH
+    pemkey = paramiko.RSAKey.from_private_key_file('us-east-1kp.pem')
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # ssh.connect(hostname=public_dns_name, username='ubuntu', key_filename='us-east-1kp.pem')
+    ssh.connect(hostname=public_dns_name, username='ubuntu', pkey=pemkey)
+
+    command = 'cd /var/www/html && python3 ec2_function.py ' + input_key + ' ' + output_key
+    # Run the simulation script on the instance
+    stdin, stdout, stderr = ssh.exec_command(command)
+
+    # Wait for the simulation to complete
+    while not stdout.channel.exit_status_ready():
+        time.sleep(1)
+
+    # Close the SSH connection
+    ssh.close()
+
+    # Download the output file from S3 bucket
+    newobj = s3.get_object(Bucket='instance-results',Key=output_key)
+    output_json = json.loads(newobj['Body'].read().decode('utf-8'))
+
+    # Download the output file from S3 bucket
+    # s3.download_file(bucket_name, output_key, 'output.json')
+
+    # Extract the required lists from the output data
+    risk95_values = output_json['risk95_values']
+    risk99_values = output_json['risk99_values']
+
+    # # Read the output file
+    # with open('output.json') as f:
+    #     ec2_out_data = json.load(f)
+
+    # risk95_values = ec2_out_data[0]
+    # risk99_values = ec2_out_data[1]
+    '''
     for i in range(h, len(data)):
         if (i+p) < len(data): # this ignores signals where we don't have price_p_days_forward
             if t=="Buy" and data[i][7]==1: # for buy signals
@@ -426,23 +482,24 @@ def useec2(public_dns_name, data, h, d, t, p):
     avg_var95 = sum(risk95_values) / len(risk95_values)
     avg_var99 = sum(risk99_values) / len(risk99_values)
 
-    # print("USE LAMBDAAAAAAA")
-    # print([result_list, total_pnl, avg_var95, avg_var99])
     return [result_list, total_pnl, avg_var95, avg_var99]
     # return [result_list]
 
 # define a function to use multiple instances of ec2
-def useec2_parallel(data, h, d, t, p, r):
+def useec2_parallel(data, h, d, t, p, public_dns_names):
     # Launch EC2 instances
-    public_dns_names = launchec2(r)
-    print("EC2 PARALLELLLLLLLLLLLLLLLLLLLLL")
-    print(public_dns_names)
-    print(type(public_dns_names[0]))
+    # public_dns_names = launchec2(r)
+    # time.sleep(150)
+    # print("EC2 PARALLELLLLLLLLLLLLLLLLLLLLL")
+    # print(public_dns_names)
+    # print(type(public_dns_names[0]))
     # Collect public DNS names of all instances
     # public_dns_names = [i.public_dns_name for i in instances]
-
+    
     # Create a list to store the results from all instances
     results = []
+    # for public_dns_name in public_dns_names:
+    #      results.append(useec2(public_dns_name, data, h, d, t, p))
 
     # Launch one thread for each instance to calculate the results
     with ThreadPoolExecutor(max_workers=len(public_dns_names)) as executor:
@@ -463,3 +520,25 @@ def useec2_parallel(data, h, d, t, p, r):
 
     # Return the combined results
     return results
+
+
+###### FUNCTIONS FOR AUDIT ######
+def read_list_from_s3(bucket_name, file_name):
+    try:
+        s3 = boto3.client('s3')
+        response = s3.get_object(Bucket=bucket_name, Key=file_name)
+        content = response['Body'].read().decode('utf-8')
+        data = json.loads(content)
+        return data
+    except Exception as e:
+        print('Error reading list from S3:', str(e))
+        return []
+
+def write_list_to_s3(bucket_name, file_name, data):
+    try:
+        s3 = boto3.client('s3')
+        content = json.dumps(data)
+        s3.put_object(Body=content, Bucket=bucket_name, Key=file_name)
+        print('List successfully written to S3.')
+    except Exception as e:
+        print('Error writing list to S3:', str(e))

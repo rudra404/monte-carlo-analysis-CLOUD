@@ -7,12 +7,22 @@
 {% block pageblock %}
 
 	<div id="up">
+		<br>
 		<h1>Monte Carlo Analysis </h1>
-		<h3>Choose options to perform analysis<br/><br/></h3>
-	</div>
+		<h4>This web app analyses trade signals on the financial time series data of NFLX obtained from yahoo finance.<br/>
+			The trade signals are given by 'Three White Soldiers' and 'Three Black Crows' strategies.<br/>
+			95% and 99% risk values are determined for each trade signal using a monte carlo simulation.<br/>
+			The audit page stores results from all previous runs to estimate costs for resources.<br/></h4>
+		<h4>
+			<span style="color: rgb(255, 255, 255); background-color: #e41749; padding: 10px;">&#9888; Please initialize resources before calculations. Wait for confirmation before proceeding.</span>
+			<br/>
+		</h4>
+		<h4>Initialize again only if you need to change 'S' or 'R' values.</h4>
+				</div>
 	
 {% include 'initializeform.htm' %}
 {% include 'inputform.htm' %}
+
 
 {% endblock %}
 

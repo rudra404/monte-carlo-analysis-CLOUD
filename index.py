@@ -5,8 +5,11 @@ import logging
 from flask import Flask, request, render_template
 import time
 
-from functions import fetch_stock_data, find_signals, calculate, make_img_url, averaging_lambda_results, uselambda, uselambda_parallel, useec2_parallel, useec2
+from functions import fetch_stock_data, find_signals, calculate, make_img_url, averaging_lambda_results, uselambda, launchec2, uselambda_parallel, useec2_parallel, useec2, read_list_from_s3, write_list_to_s3
 # from globals import s,r
+os.environ['AWS_SHARED_CREDENTIALS_FILE']='./cred' 
+
+import boto3
 
 app = Flask(__name__)
 
@@ -52,17 +55,37 @@ def calculateHandler():
 			# data = fetch_stock_data()
 			# find_signals(data)
 			if s == 'lambda':
+				starttime = time.time()
 				results = uselambda_parallel(data, h, d, t, p, r)
+				runtime = time.time() - starttime
+				cost = runtime * float(r) * 0.0000000021 * 100
 				result_list, total_pnl, avg_var95, avg_var99 = averaging_lambda_results(results)
 				# if result_list:
 				# 	img_url = make_img_url(result_list, avg_var95, avg_var99)
 
 			elif s == 'ec2':
-				results = useec2_parallel(data, h, d, t, p, r)
+				starttime = time.time()
+				results = useec2_parallel(data, h, d, t, p, public_dns_names)
+				runtime = time.time() - starttime
+				cost = runtime * float(r) * 0.0000000021 * 100
 				result_list, total_pnl, avg_var95, avg_var99 = averaging_lambda_results(results)
 				# if result_list:
 				# 	img_url = make_img_url(result_list, avg_var95, avg_var99)
-					
+			
+			# Update the audit list
+			s3 = boto3.client('s3')
+			# Read the existing list from S3
+			bucket_name = 'audit-page-bucket'
+			file_name = 'audit.json'
+			existing_list = read_list_from_s3(bucket_name, file_name)
+			# Append new values to the list
+			new_values = [s, r, h, d, t, p, avg_var95, avg_var99, total_pnl, runtime, cost]
+			existing_list.append(new_values)
+			# print(existing_list)
+			# Write the updated list back to S3
+			write_list_to_s3(bucket_name, file_name, existing_list)
+
+
 			# display results using a new template results.htm
 			img_url = make_img_url(result_list, avg_var95, avg_var99)
 			return doRender('results.htm', {'result_list': result_list, 'total_pnl': total_pnl, 'avg_var95': avg_var95, 'avg_var99': avg_var99, 'img_url': img_url})
@@ -83,9 +106,63 @@ def initializeHandler():
 		else:
 			data = fetch_stock_data()
 			find_signals(data)
+			if s == 'lambda':
+				dummyresults = uselambda_parallel(data, 30, 100, 'Buy', 20, r)
+			if s == 'ec2':
+				global public_dns_names
+				public_dns_names = launchec2(r)
+				time.sleep(150)
+			return doRender('index.htm', {'initnote': f"Initialized {r} {s} resources successfully. Please proceed."})
+
 			return '', 204
 
-	return 'Should not ever get here'
+# Defines a POST supporting audit route
+@app.route('/audit', methods=['POST'])
+def auditHandler():
+	if request.method == 'POST':
+		s3 = boto3.client('s3')
+		# Read the existing list from S3
+		bucket_name = 'audit-page-bucket'
+		file_name = 'audit.json'
+		audit_list = read_list_from_s3(bucket_name, file_name)
+		return doRender('audit.htm', {'audit_list': audit_list})
+	
+# Defines a POST supporting terminate route
+@app.route('/terminate1', methods=['POST'])
+def terminate1():
+	# Initialize the EC2 client
+	ec2 = boto3.client('ec2', region_name='us-east-1')
+	# Get the IDs of running EC2 instances
+	# filters = [{'Name': 'instance-state-name', 'Values': ['running']}]
+	running_instances = ec2.describe_instances(Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
+	instance_ids = [i['InstanceId'] for r in running_instances['Reservations'] for i in r['Instances']]
+	# Check if running instance_ids exist and terminate if they do
+	if instance_ids:
+		ec2.terminate_instances(InstanceIds=instance_ids)
+		terminote = 'Instances have been terminated'
+	else:
+		terminote = 'No instances to terminate'
+	
+	return doRender('results.htm', {'terminote': terminote})
+
+@app.route('/terminate2', methods=['POST'])
+def terminate2():
+	# Initialize the EC2 client
+	ec2 = boto3.client('ec2', region_name='us-east-1')
+	# Get the IDs of running EC2 instances
+	# filters = [{'Name': 'instance-state-name', 'Values': ['running']}]
+	running_instances = ec2.describe_instances(Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
+	instance_ids = [i['InstanceId'] for r in running_instances['Reservations'] for i in r['Instances']]
+	# Check if running instance_ids exist and terminate if they do
+	if instance_ids:
+		ec2.terminate_instances(InstanceIds=instance_ids)
+		terminote = 'Instances have been terminated'
+	else:
+		terminote = 'No instances to terminate'
+	
+	return doRender('index.htm', {'terminote': terminote})
+
+	# return 'Should not ever get here'
 
 # Defines a route to fetch static setup file while avoiding cache
 # @app.route('/cacheavoid/<name>')

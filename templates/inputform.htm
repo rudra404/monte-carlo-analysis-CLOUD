@@ -1,27 +1,10 @@
 
 <div id="down">
 
-<!-- <h4>Choose options to initialize the system</h4>
-<form id="inputform" method="post" action="/calculate">
-<label for="select_service">Select type of scalable service (S):</label>
-<select id="select_service" name="select_service">
-<option value="lambda">Lambda</option>
-<option value="ec2">EC2</option>
-</select>
-<br><br>
-<label for="num_r">Enter number of resources (R):</label>
-<input type="number" id="num_r" name="num_r">
-    {% if note %}
-<span id="note">
-        {{ note }}
-</span>
-    {% endif %}
-<br><br> -->
-
-<h4>Please enter your analysis parameters</h4>
+<h3>Please enter your analysis parameters</h3>
 <form id="inputform" method="post" action="/calculate">
 <label for="num_h">Enter length of price history in number of days (H):</label>
-<input type="number" id="num_h" name="num_h">
+<input type="number" id="num_h" name="num_h" required>
     {% if note1 %}
 <span id="note1">
         {{ note1 }}
@@ -31,7 +14,7 @@
 <br><br>
 
 <label for="num_d">Enter number of shots used per R (D):</label>
-<input type="number" id="num_d" name="num_d">
+<input type="number" id="num_d" name="num_d" required>
     {% if note2 %}
 <span id="note2">
         {{ note2 }}
@@ -49,7 +32,7 @@
 <br><br>
 
 <label for="num_p">Enter profitibility time horizon in number of days (P):</label>
-<input type="number" id="num_p" name="num_p">
+<input type="number" id="num_p" name="num_p" required>
     {% if note3 %}
 <span id="note3">
         {{ note3 }}
@@ -59,11 +42,24 @@
 <br><br>
 
 <input type="submit" value="Calculate">
-<input type="button" value="Cancel" onclick="window.location='/';">
+<input type="button" value="Reset" onclick="window.location='/';">
 
 <br>
 </form>
-
+<div style = "display: flex;">
+<form id="auditbutton" method="post" action="/audit">
+    <input type="submit" value="Go to Audit" style="margin-top: 15px;">
+</form>
+<form id="terminatebutton" method="post" action="/terminate2">
+    <input type="submit" value="Terminate all instances" style="margin-top: 15px; margin-left: 5px;">
+        {% if terminote %}
+    <span id="terminote">
+            {{ terminote }}
+    </span>
+        {% endif %}
+</form>
+</div>
+<br><br>
 
 </div>
 

@@ -6,10 +6,37 @@
 
 {% block pageblock %}
     <div id="up">
+        <br>
+        <div style = "display: flex;">
+        <form id="auditbutton" method="post" action="/audit">
+            <input type="submit" value="Go to Audit" style="margin: 5px;">
+            <input type="button" value="Reset" onclick="window.location='/';" style="margin: 5px;">
+        </form>
+        <form id="terminatebutton1" method="post" action="/terminate1" style = "margin: 5px;">
+            <input type="submit" value="Terminate all instances">
+                {% if terminote %}
+            <span id="terminote">
+                    {{ terminote }}
+            </span>
+                {% endif %}
+        </form>
+        </div>
         <h1>Results</h1>
     </div>
     
     <div id="content">
+        <h2>Summary</h2>
+        <table>
+            <tr style="	background-color: #2f420c; text-align: center; padding: 8px; border: 2px solid #ddd;"><td>Total PnL : $ {{ total_pnl }}</td></tr>
+            <tr style="	background-color: #2f420c; text-align: center; padding: 8px; border: 2px solid #ddd;"><td>Average Risk99 : {{ avg_var95 }}</td></tr>
+            <tr style="	background-color: #2f420c; text-align: center; padding: 8px; border: 2px solid #ddd;"><td>Average Risk95 : {{ avg_var99 }}</td></tr>
+        </table>
+        <div style="display: flex;">
+        <div>
+        <h2>Risk 95% and Risk 99% Line Chart</h2>
+        <img src="{{ img_url }}" class="displayed" alt="Graph: no internet connection." />
+        </div>
+        <div>
         <h2>Results Table</h2>
         <table>
             {% for row in result_list %}
@@ -20,24 +47,19 @@
                 </tr>
             {% endfor %}
         </table>
-        
+        </div>
+        </div>
         <!-- {% if result_list %}
         <h3>Risk 95% and Risk 99% Line Chart</h3>
         <img src="https://image-charts.com/chart?cht=lc&chd=t:{{ risk95_values }},{{ risk99_values }}&chs=600x300&chxt=x,y&chdl=Risk+95%|Risk+99%&chco=FF0000,0000FF" class="displayed" alt="Graph: no internet connection." align="center" />
         {% endif %} -->
         <!-- {% if result_list %} -->
-        <h2>Risk 95% and Risk 99% Line Chart</h2>
-        <img src="{{ img_url }}" class="displayed" alt="Graph: no internet connection." />
+        
         <!-- {% endif %} -->
       
       
 
 
-        <h2>Summary</h2>
-        <ul>
-            <li>Total PnL: {{ total_pnl }}</li>
-            <li>Average Risk99: {{ avg_var95 }}</li>
-            <li>Average Risk95: {{ avg_var99 }}</li>
-        </ul>
+        
     </div>
 {% endblock %}

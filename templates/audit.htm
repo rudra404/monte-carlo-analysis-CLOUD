@@ -1,0 +1,23 @@
+{% extends "_base.htm" %}
+
+{% block title %}
+    AUDIT
+{% endblock %}
+
+{% block pageblock %}
+    <div id="up">
+        <h1>Audit Page</h1>
+    </div>
+    
+    <div id="content">
+        <h2>All simulation runs</h2>
+        <table>
+            {% for row in audit_list %}
+                <tr>
+                    {% for item in row %}
+                        <td>{{ item }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </table>
+{% endblock %}

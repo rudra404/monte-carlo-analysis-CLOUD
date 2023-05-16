@@ -1,3 +1,4 @@
+'''
 #!/usr/bin/env python3
 
 import math
@@ -138,4 +139,4 @@ def calculate(data, minhistory, shots, signaltype, P):
 # print('Total Profit/Loss : {:.2f}'.format(total_pnl))
 # print('Average Risk 95% : {:.2f}'.format(avg_var95))
 # print('Average Risk 99% : {:.2f}'.format(avg_var99))
-
+'''
