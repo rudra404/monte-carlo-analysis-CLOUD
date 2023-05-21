@@ -1,4 +1,4 @@
-/* CSS layout */
+/* Defining some custom CSS styles for a layout */
 
 body {
 	text-align: justify;
@@ -28,7 +28,7 @@ h2 {
 h3 {
 	font-size: 1.2em;
 }
-
+/* Style for table */
 table {
 	border-collapse: collapse;
 	width: 45%;
@@ -37,11 +37,10 @@ table {
   }
   
 td {
-	/* text-align: left; */
 	padding: 4px;
 	border: 1px solid #ddd;
   }
-
+/* Style for first row of table as a header */
 table tr:first-child {
 	background-color: #2f420c;
 	text-align: center;
@@ -55,7 +54,7 @@ tr {
 	padding: 4px;
 	border: 1px solid #ddd;
 }
-
+/* Style for hovering over a row to make table more legible */
 tr:hover {
 	background-color: #2f420c;
   }
@@ -64,7 +63,7 @@ IMG.displayed{
 	display: inline;
 	margin-left: 20px;
 }
-
+/* Style for division ids  */
 #page {
 	background: #6E6E6E;
 	

@@ -1,3 +1,4 @@
+<!-- Results page -->
 {% extends "_base.htm" %}
 
 {% block title %}
@@ -5,6 +6,7 @@
 {% endblock %}
 
 {% block pageblock %}
+<!-- Navigation / action buttons -->
     <div id="up">
         <br>
         <div style = "display: flex;">
@@ -15,8 +17,8 @@
         <form id="terminatebutton1" method="post" action="/terminate1" style = "margin: 5px;">
             <input type="submit" value="Terminate all instances">
                 {% if terminote %}
-            <span id="terminote">
-                    {{ terminote }}
+            <span id="terminote" style="color: white; background-color: #12c99b; padding: 5px; font-weight: 600;">
+                 &#10003; {{ terminote }}
             </span>
                 {% endif %}
         </form>
@@ -49,17 +51,6 @@
         </table>
         </div>
         </div>
-        <!-- {% if result_list %}
-        <h3>Risk 95% and Risk 99% Line Chart</h3>
-        <img src="https://image-charts.com/chart?cht=lc&chd=t:{{ risk95_values }},{{ risk99_values }}&chs=600x300&chxt=x,y&chdl=Risk+95%|Risk+99%&chco=FF0000,0000FF" class="displayed" alt="Graph: no internet connection." align="center" />
-        {% endif %} -->
-        <!-- {% if result_list %} -->
-        
-        <!-- {% endif %} -->
-      
-      
-
-
         
     </div>
 {% endblock %}

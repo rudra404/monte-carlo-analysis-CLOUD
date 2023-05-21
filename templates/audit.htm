@@ -1,3 +1,5 @@
+<!-- Audit log page -->
+
 {% extends "_base.htm" %}
 
 {% block title %}
@@ -5,13 +7,18 @@
 {% endblock %}
 
 {% block pageblock %}
+
+<!-- Back button -->
     <div id="up">
-        <h1>Audit Page</h1>
+        <br>
+        <button onclick="history.back()" style="margin: 5px;">Go Back</button>
+        <h1>Audit Log</h1>
     </div>
     
+<!-- Log displayed as a table -->
     <div id="content">
-        <h2>All simulation runs</h2>
-        <table>
+        <h2>Simulation History</h2>
+        <table style="text-align: center;">
             {% for row in audit_list %}
                 <tr>
                     {% for item in row %}
@@ -20,4 +27,5 @@
                 </tr>
             {% endfor %}
         </table>
+    <div>
 {% endblock %}

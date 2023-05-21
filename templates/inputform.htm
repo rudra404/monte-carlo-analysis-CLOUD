@@ -1,4 +1,5 @@
-
+<!-- Form template asking for the remaining values required for the simulation -->
+<!-- All notes here are pop-ups if input conditions are not met -->
 <div id="down">
 
 <h3>Please enter your analysis parameters</h3>
@@ -52,14 +53,14 @@
 </form>
 <form id="terminatebutton" method="post" action="/terminate2">
     <input type="submit" value="Terminate all instances" style="margin-top: 15px; margin-left: 5px;">
+    <!-- Pop-up for successful termination of instances -->
         {% if terminote %}
-    <span id="terminote">
-            {{ terminote }}
+    <span id="terminote" style="color: white; background-color: #12c99b; padding: 5px; font-weight: 600;">
+         &#10003; {{ terminote }}
     </span>
         {% endif %}
 </form>
 </div>
-<br><br>
 
 </div>
 

@@ -1,8 +1,10 @@
+# import required libraries
 import json
 import random
 import math
 
 def lambda_handler(event, context):
+    # Extract input values
     minhistory = int(event['history'])
     shots = int(event['shots'])
     signaltype = str(event['signal_type'])
@@ -11,15 +13,10 @@ def lambda_handler(event, context):
     buy_signals = event['buy_signals']
     sell_signals = event['sell_signals']
 
-
-    print(minhistory, shots, signaltype, P)
-    print(buy_signals)
-    print(sell_signals)
-
-    # create empty lists to store the results
+    # Create empty lists to store the results
     risk95_values = []
     risk99_values = []
-
+    # Run simulations
     for i in range(minhistory, len(closing_prices)):
         if (i+P) < len(closing_prices): # this ignores signals where we don't have price_p_days_forward
             if signaltype=="Buy" and buy_signals[i]==1: # for buy signals
@@ -41,7 +38,7 @@ def lambda_handler(event, context):
                 risk99_values.append(var99)
 
             
-            elif signaltype=="Sell" and sell_signals[i]==1:
+            elif signaltype=="Sell" and sell_signals[i]==1: # for sell signals
                 # calculate the mean and standard deviation of the price changes over the past minhistory days
                 pct_changes = [closing_prices[j]/closing_prices[j-1] - 1 for j in range(i-minhistory, i)] # percent changes with previous closing price
                 mean = sum(pct_changes)/len(pct_changes)
@@ -60,16 +57,16 @@ def lambda_handler(event, context):
                 risk99_values.append(var99)
                 
 
-    return (risk95_values, risk99_values)
+    return (risk95_values, risk99_values) # Return simulation results
 
 
 ###### TEST EVENT ######
 # {
 #   "history": "2",
-#   "shots": "100",
+#   "shots": "200",
 #   "signal_type": "Buy",
-#   "time_horizon": "5",
-#   "closing_prices": "[1,11,12,13,14,69,420,666, 333, 3141, 161]",
-#   "buy_signals": "[0,1,0,0,1,1,1,0,0,1,1]",
-#   "sell_signals": "[1,0,1,1,0,0,0,1,1,0,0]"
+#   "time_horizon": "1",
+#   "closing_prices": "[10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]",
+#   "buy_signals": "[1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1]",
+#   "sell_signals": "[0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0]"
 # }

@@ -3,54 +3,49 @@
 import math
 import random
 import yfinance as yf
-# import pandas as pd
 from datetime import date, timedelta
 from pandas_datareader import data as pdr
-#lambda imports
+# Lambda imports
 import http.client
 import json
 import time
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
-#ec2 imports
+# EC2 imports
 import os
+from flask import session
 
-# import paramiko
 import requests
 os.environ['AWS_SHARED_CREDENTIALS_FILE']='./cred' 
 
 import boto3
 
-# override yfinance with pandas – seems to be a common step
+# Override yfinance with pandas – seems to be a common step
 yf.pdr_override()
 
 ###### FUNCTIONS FOR GENERAL USE ######
 
-# define a function to fetch stock data from yfinance and convert to list format
+# Define a function to fetch stock data from yfinance and convert to list format
 def fetch_stock_data():
-    # Get stock data from Yahoo Finance – here, asking for about 3 years
+    # Get NFLX stock data from Yahoo Finance – here, asking for 3 years
     today = date.today()
     ThreeYearsAgo = today - timedelta(days=1095)
 
-    # Get stock data from Yahoo Finance – here, Gamestop which had an interesting
-    #time in 2021: https://en.wikipedia.org/wiki/GameStop_short_squeeze
-
     data = pdr.get_data_yahoo('NFLX', start=ThreeYearsAgo, end=today) # get data for NETFLIX
     
-    # Convert the dataframe to a list of lists
+    # Convert the dataframe to a list of lists - avoiding pandas for consistency with EC2 and lambda scripts
+    # Add columns for BUY and SELL signals
     data_list = []
     for index, row in data.iterrows():
         data_list.append([index.date(), row['Open'], row['High'], row['Low'], row['Close'], row['Adj Close'], row['Volume'], 0, 0])
-        # add columns for BUY and SELL signals
 
     return data_list
 
-# define function to identify buy and sell signals in the data
+# Define function to identify buy and sell signals in the data
 def find_signals(data):
-    # Find the signals
+    # Find signals
     for i in range(2, len(data)):
         body = 0.01
-        # if signaltype == "Buy":
         # Three Soldiers
         if (data[i][4] - data[i][1]) >= body \
                 and data[i][4] > data[i-1][4] \
@@ -58,8 +53,7 @@ def find_signals(data):
                 and data[i-1][4] > data[i-2][4] \
                 and (data[i-2][4] - data[i-2][1]) >= body:
             data[i][7] = 1
-                #print("Buy at ", data[i][0])
-        # elif signaltype == "Sell":
+
         # Three Crows
         if (data[i][1] - data[i][4]) >= body \
                 and data[i][4] < data[i-1][4] \
@@ -67,117 +61,88 @@ def find_signals(data):
                 and data[i-1][4] < data[i-2][4] \
                 and (data[i-2][1] - data[i-2][4]) >= body:
             data[i][8] = 1
-                #print("Sell at ", data[i][0])
+
     return data
 
-# define a function to generate the url for plotting a graph
+# Define a function to generate the url for plotting results graph
 def make_img_url(result_list, avg_var95, avg_var99):
     signal_dates = [row[0] for row in result_list[1:]]  # Extract signal dates
     risk95_values = [row[1] for row in result_list[1:]]  # Extract Risk 95% values
     risk99_values = [row[2] for row in result_list[1:]]  # Extract Risk 99% values
     avg_var95_values = [avg_var95]*len(signal_dates)  # Create list of average 95 values
     avg_var99_values = [avg_var99]*len(signal_dates)  # Create list of average 99 values
-    # selected_dates = [date for date in signal_dates if date.day == 1] # Only show the first date of every month
-    # selected_dates_str = ','.join([date.strftime('%Y-%m-%d') for date in selected_dates]) # Format dates as strings
-    signal_dates_str = ','.join([date.strftime('%Y-%m-%d') for date in signal_dates]) # Format dates as strings
+    # Format as strings
+    signal_dates_str = ','.join([date.strftime('%Y-%m-%d') for date in signal_dates])
     risk95_values_str = ','.join([str(val) for val in risk95_values])
     risk99_values_str = ','.join([str(val) for val in risk99_values])
     avg_var95_values_str = ','.join(str(v) for v in avg_var95_values)
     avg_var99_values_str = ','.join(str(v) for v in avg_var99_values)
 
+    # Using quickchart.io here which is a better option and more visually pleasing than google charts and image charts
     img_url = f"https://quickchart.io/chart/render/zm-f285fd40-0b04-481b-a408-84fb4b705c8c?labels={signal_dates_str}&data1={risk95_values_str}&data2={risk99_values_str}&data3={avg_var95_values_str}&data4={avg_var99_values_str}"
 
     return img_url
 
-# define a function for all calculations 
-def calculate(data, minhistory, shots, signaltype, P):
-
-    # create empty lists to store the results
+# Define a function to calculate average values from all runs
+def averaging_results(results):
+    # Create empty lists to store results
     signal_dates = []
     risk95_values = []
     risk99_values = []
     pnl_values = []
 
-    for i in range(minhistory, len(data)):
-        if (i+P) < len(data): # this ignores signals where we don't have price_p_days_forward
-            if signaltype=="Buy" and data[i][7]==1: # for buy signals
-                # calculate the mean and standard deviation of the price changes over the past minhistory days
-                pct_changes = [data[j][4]/data[j-1][4] - 1 for j in range(i-minhistory, i)] # percent changes with previous closing price
-                mean = sum(pct_changes)/len(pct_changes)
-                std = math.sqrt(sum([(x-mean)**2 for x in pct_changes])/len(pct_changes))
-                
-                # generate much larger random number series with same broad characteristics
-                simulated = [random.gauss(mean,std) for x in range(shots)]
-                
-                # sort and pick 95% and 99%  - not distinguishing long/short risks here
-                simulated.sort(reverse=True)
-                var95 = simulated[int(len(simulated)*0.95)]
-                var99 = simulated[int(len(simulated)*0.99)]
-                
-                # record the signal date and risk values
-                signal_dates.append(data[i][0])
-                risk95_values.append(var95)
-                risk99_values.append(var99)
-                
-                # calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
-                price_at_signal = data[i][4]
-                price_p_days_forward = data[i+P][4]
+    for i in range(len(results[0][0])):
+        signal_dates.append(results[0][0][i][0]) # Copying signal dates from first set of results
 
-                pnl_per_share = price_p_days_forward - price_at_signal
-                
-                # record the profit/loss per share
-                pnl_values.append(pnl_per_share)
-            
-            elif signaltype=="Sell" and data[i][8]==1:
-                # calculate the mean and standard deviation of the price changes over the past minhistory days
-                pct_changes = [data[j][4]/data[j-1][4] - 1 for j in range(i-minhistory, i)] # percent changes with previous closing price
-                mean = sum(pct_changes)/len(pct_changes)
-                std = math.sqrt(sum([(x-mean)**2 for x in pct_changes])/len(pct_changes))
-                
-                # generate much larger random number series with same broad characteristics
-                simulated = [random.gauss(mean,std) for x in range(shots)]
-                
-                # sort and pick 95% and 99%  - not distinguishing long/short risks here
-                simulated.sort(reverse=True)
-                var95 = simulated[int(len(simulated)*0.95)]
-                var99 = simulated[int(len(simulated)*0.99)]
-                
-                # record the signal date and risk values
-                signal_dates.append(data[i][0])
-                risk95_values.append(var95)
-                risk99_values.append(var99)
-                
-                # calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
-                price_at_signal = data[i][4]
-                price_p_days_forward = data[i+P][4]
-                pnl_per_share =  price_at_signal - price_p_days_forward
-                
-                # record the profit/loss per share
-                pnl_values.append(pnl_per_share)
+    for i in range(len(results[0][0])):
+        avg = 0
+        for result in results:
+            avg = avg + result[0][i][1]
+        avg = avg / len(results)
 
-    # create a list of lists to store the results - avoiding pandas dataframes
+        risk95_values.append(avg) # Average risk 95 values of all runs
+
+    for i in range(len(results[0][0])):
+        avg = 0
+        for result in results:
+            avg = avg + result[0][i][2]
+        avg = avg / len(results)
+
+        risk99_values.append(avg) # Average risk 95 values of all runs
+
+    for i in range(len(results[0][0])):
+        avg = 0
+        for result in results:
+            avg = avg + result[0][i][3]
+        avg = avg / len(results)
+
+        pnl_values.append(avg) # Average profit & loss values of all runs
+
+    # Create a results list to return values
     result_list = [['Signal Date', 'Risk 95%', 'Risk 99%', 'Profit/Loss per Share']]
     for i in range(len(signal_dates)):
         result_list.append([signal_dates[i], risk95_values[i], risk99_values[i], pnl_values[i]])
 
-        # calculate the total profit/loss and average risk values
+    # Calculate the total profit/loss and average risk values and return with the results list
     total_pnl = sum(pnl_values)
     avg_var95 = sum(risk95_values) / len(risk95_values)
     avg_var99 = sum(risk99_values) / len(risk99_values)
 
     return (result_list, total_pnl, avg_var95, avg_var99)
 
+
 ###### FUNCTIONS FOR LAMBDA ######
-# define a function to use lambda for simulation and calculation of risk values
-# this function also handles further calculation and returns a result_list
+
+# Define a function to use lambda for simulation and calculation of risk values
+# This function also handles further calculation and returns a list of results
 def uselambda(data, h, d, t, p):
-	# collecting only required columns
+	# Collecting only columns required for simulations to be sent
 	closing_prices = [data[i][4] for i in range(len(data))]
 	buy_signals = [data[i][7] for i in range(len(data))]
 	sell_signals = [data[i][8] for i in range(len(data))]
-	# establish a connection using invoke URL of lambda_calc function
+	# Establish a connection using invoke URL of lambda_calc function
 	connection = http.client.HTTPSConnection("wie41at3mc.execute-api.us-east-1.amazonaws.com")
-	# creating a json to send input data to the function
+	# Creating a dictionary to send input data to the function
 	json_keys = {
     "history": h,
     "shots": d,
@@ -188,8 +153,9 @@ def uselambda(data, h, d, t, p):
     "sell_signals": sell_signals
 	}
 
-	input_json = json.dumps(json_keys)
-	connection.request("POST", "/default/lambda_calc", input_json)
+	input_json = json.dumps(json_keys) # Converting dictionary to json
+	connection.request("POST", "/default/lambda_calc", input_json) # Sending a POST request to lambda function
+    # Get the response and convert to json and further to a list of lists
 	response = connection.getresponse()
 	lambda_out_data = response.read().decode('utf-8')
 	lambda_out_data = json.loads(lambda_out_data)
@@ -199,9 +165,11 @@ def uselambda(data, h, d, t, p):
 	risk99_values = []
 	pnl_values = []
 
+    # Extract output from lambda function
 	risk95_values = lambda_out_data[0]
 	risk99_values = lambda_out_data[1]
 
+    # Calculation steps after completing simulation
 	for i in range(h, len(data)):
 		if (i+p) < len(data): # this ignores signals where we don't have price_p_days_forward
 			if t=="Buy" and data[i][7]==1: # for buy signals
@@ -213,7 +181,7 @@ def uselambda(data, h, d, t, p):
 				# record the profit/loss per share
 				pnl_values.append(pnl_per_share)
 			
-			elif t=="Sell" and data[i][8]==1:
+			elif t=="Sell" and data[i][8]==1: # for sell signals
 				signal_dates.append(data[i][0]) # record the signal date
 				# calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
 				price_at_signal = data[i][4]
@@ -222,100 +190,45 @@ def uselambda(data, h, d, t, p):
 				# record the profit/loss per share
 				pnl_values.append(pnl_per_share)
 	
-	# create a list of lists to store the results - avoiding pandas dataframes
-	# result_list = [['Signal Date', 'Risk 95%', 'Risk 99%', 'Profit/Loss per Share']]
+	# Create a list of lists to store the results - avoiding pandas dataframes
 	result_list = []
 
 	for i in range(len(signal_dates)):
 		result_list.append([signal_dates[i], risk95_values[i], risk99_values[i], pnl_values[i]])
 
-	# calculate the total profit/loss and average risk values
+	# Calculate the total profit/loss and average risk values
 	total_pnl = sum(pnl_values)
 	avg_var95 = sum(risk95_values) / len(risk95_values)
 	avg_var99 = sum(risk99_values) / len(risk99_values)
 
-	# print("USE LAMBDAAAAAAA")
-	# print([result_list, total_pnl, avg_var95, avg_var99])
 	return [result_list, total_pnl, avg_var95, avg_var99]
-	# return [result_list]
 
-# define a function to run multiple uselambda() functions in parallel
+# Define a function to run multiple uselambda() functions in parallel using ThreadPoolExecutor
 def uselambda_parallel(data, h, d, t, p, r):
 	with ThreadPoolExecutor(max_workers=19) as executor:
 		futures = []
+        # We want to parallelize within 'r' functions
 		for i in range(int(r)):
 			future = executor.submit(uselambda, data, h, d, t, p)
 			futures.append(future)
 
 		results = []
 		for future in concurrent.futures.as_completed(futures):
-		# for future in futures:
 			result = future.result()
 			results.append(result)
-	# print("USELAMBDA PARALLELLLLLLLLLLL")
-	# print(results)
+
 	return results
 
-# define a function to calculate average values from all lambda runs
-def averaging_lambda_results(results):
-    signal_dates = []
-    risk95_values = []
-    risk99_values = []
-    pnl_values = []
-
-    for i in range(len(results[0][0])):
-        signal_dates.append(results[0][0][i][0])
-
-    for i in range(len(results[0][0])):
-        avg = 0
-        for result in results:
-            # print(result[0][i][1])
-            avg = avg + result[0][i][1]
-        avg = avg / len(results)
-
-        risk95_values.append(avg)
-
-    for i in range(len(results[0][0])):
-        avg = 0
-        for result in results:
-            # print(result[0][i][2])
-            avg = avg + result[0][i][2]
-        avg = avg / len(results)
-
-        risk99_values.append(avg)
-
-    for i in range(len(results[0][0])):
-        avg = 0
-        for result in results:
-            # print(result[0][i][3])
-            avg = avg + result[0][i][3]
-        avg = avg / len(results)
-
-        pnl_values.append(avg)
-
-    # print(signal_dates)
-    result_list = [['Signal Date', 'Risk 95%', 'Risk 99%', 'Profit/Loss per Share']]
-    for i in range(len(signal_dates)):
-        result_list.append([signal_dates[i], risk95_values[i], risk99_values[i], pnl_values[i]])
-        # print(result_list)
-        # calculate the total profit/loss and average risk values
-    total_pnl = sum(pnl_values)
-    avg_var95 = sum(risk95_values) / len(risk95_values)
-    avg_var99 = sum(risk99_values) / len(risk99_values)
-
-    return (result_list, total_pnl, avg_var95, avg_var99)
-
 ###### FUNCTIONS FOR EC2 ######
-# define a function to initialize ec2 instances
+
+# Define a function to initialize EC2 instances
 def launchec2(r):
     os.environ['AWS_SHARED_CREDENTIALS_FILE']='./cred' 
     # Above line needs to be here before boto3 to ensure cred file is read from the right place
     import boto3
 
-    # Set the user-data we need – use your endpoint
-    # user_data = """#!/bin/bash
-    #             wget https://monte-carlo-analysis.nw.r.appspot.com/cacheavoid/setup.bash
-    #             bash setup.bash"""
+    # Set the user data that will be run as a bash script when EC2 instances are initialized
+    # It is not being imported from another file hosting service to increase speed and reduce errors
     user_data = """#!/bin/bash
                 # Update packages
                 apt update -y
@@ -323,48 +236,51 @@ def launchec2(r):
                 apt install python3 apache2 -y
                 # Restart Apache
                 apache2ctl restart
-                # Copy files from public domain to instance - hosting these on GAE makes it very slow
+                # Copy files from gitlab public domain to the new instance
+                # Hosting on GAE increases the time taken by a lot
                 wget https://gitlab.surrey.ac.uk/rs01922/montecarlo_cw_files/-/raw/main/apache2.conf -O /etc/apache2/apache2.conf
                 wget https://gitlab.surrey.ac.uk/rs01922/montecarlo_cw_files/-/raw/main/ec2_function.py -P /var/www/html
                 # Set permissions
                 chmod 755 /var/www/html/ec2_function.py
                 # Enable CGI module and restart Apache
                 a2enmod cgi
+                # Restart Apache to use new config file and ensure everything is fine
                 service apache2 restart"""
     
 
     ec2 = boto3.resource('ec2', region_name='us-east-1')
 
+    session['ec2starttime'] = time.time() # Store the start time in a session variable. This will be overwritten each time instances are initialized
+
     instances = ec2.create_instances(
         ImageId = 'ami-007855ac798b5175e', # Ubuntu AMI
-        MinCount = int(r), 
+        MinCount = int(r), # initialize 'r' instances
         MaxCount = int(r), 
         InstanceType = 't2.micro', 
-        KeyName = 'us-east-1kp', # Make sure you have the named us-east-1kp
-        SecurityGroups=['ssh'], # Make sure you have the named SSH
-        UserData=user_data # and user-data
+        KeyName = 'us-east-1kp', # Security key
+        SecurityGroups=['ssh'], # Security group
+        UserData=user_data
         )
     public_dns_names = []
-    # Wait for AWS to report instance(s) ready. 
+    # Wait for AWS to report instance(s) ready
     for i in instances:
         i.wait_until_running()
         # Reload the instance attributes
         i.load()
         public_dns_names.append(i.public_dns_name)
-        print(i.public_dns_name) # ec2 com address
     print(public_dns_names)
+    session['public_dns_names'] = [public_dns_names] # Store list of DNS names in session variable
     return public_dns_names
 
-# Function to run the simulation on an EC2 instance
+# Define a function to run the simulation on an EC2 instance
 def useec2(public_dns_name, data, h, d, t, p):
     # Collect only required columns
     closing_prices = [data[i][4] for i in range(len(data))]
     buy_signals = [data[i][7] for i in range(len(data))]
     sell_signals = [data[i][8] for i in range(len(data))]
 
-    # input_key = public_dns_name+h+d+t+p+'inputparameters'+'.json'
-    # output_key = public_dns_name+h+d+t+p+'simulationresults'+'.json'
-    # Create a JSON to send input data to the function
+
+    # Create a dictionary to send input data to the function
     json_keys = {
         "history": h,
         "shots": d,
@@ -374,18 +290,18 @@ def useec2(public_dns_name, data, h, d, t, p):
         "buy_signals": buy_signals,
         "sell_signals": sell_signals
     }
-        #     "input_key": input_key,
-        # "output_key": output_key
-    # create empty lists to store the results
+
+    # Create empty lists to store the results
     signal_dates = []
     risk95_values = []
     risk99_values = []
     pnl_values = []
 
-    url = 'http://' + public_dns_name + '/ec2_function.py'
+    url = 'http://' + public_dns_name + '/ec2_function.py' # Connect to the initialized and configured EC2 instance using this url
     headers = {"Content-Type": "application/json"}
-    response = requests.post(url, headers=headers, data=json.dumps(json_keys))
+    response = requests.post(url, headers=headers, data=json.dumps(json_keys)) # Send a POST request to the EC2 instance
 
+    # Some error handling for the response recieved from EC2
     if response.status_code != 200:
         print('Error:', response.status_code)
         return None
@@ -394,112 +310,52 @@ def useec2(public_dns_name, data, h, d, t, p):
         print('Error: Response is empty')
         return None
 
-
+    # Collect the response from EC2
     response_data = json.loads(response.text)
 
+    # Extract simulation result values from EC2 output
     risk95_values = response_data['risk95_values']
     risk99_values = response_data['risk99_values']
 
 
-
-
-    '''
-    s3 = boto3.client('s3')
-    input_json = json.dumps(json_keys)
-    s3.put_object(Bucket='ec2-function-input',Key=input_key, Body=input_json)
-    # Write input JSON to a file
-    # with open('input.json', 'w') as f:
-    #     json.dump(json_keys, f)
-
-    # Upload the input file to S3 bucket
-    # s3.upload_file('input.json', bucket_name, input_key)
-
-    # Establish a connection to the EC2 instance using SSH
-    pemkey = paramiko.RSAKey.from_private_key_file('us-east-1kp.pem')
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    # ssh.connect(hostname=public_dns_name, username='ubuntu', key_filename='us-east-1kp.pem')
-    ssh.connect(hostname=public_dns_name, username='ubuntu', pkey=pemkey)
-
-    command = 'cd /var/www/html && python3 ec2_function.py ' + input_key + ' ' + output_key
-    # Run the simulation script on the instance
-    stdin, stdout, stderr = ssh.exec_command(command)
-
-    # Wait for the simulation to complete
-    while not stdout.channel.exit_status_ready():
-        time.sleep(1)
-
-    # Close the SSH connection
-    ssh.close()
-
-    # Download the output file from S3 bucket
-    newobj = s3.get_object(Bucket='instance-results',Key=output_key)
-    output_json = json.loads(newobj['Body'].read().decode('utf-8'))
-
-    # Download the output file from S3 bucket
-    # s3.download_file(bucket_name, output_key, 'output.json')
-
-    # Extract the required lists from the output data
-    risk95_values = output_json['risk95_values']
-    risk99_values = output_json['risk99_values']
-
-    # # Read the output file
-    # with open('output.json') as f:
-    #     ec2_out_data = json.load(f)
-
-    # risk95_values = ec2_out_data[0]
-    # risk99_values = ec2_out_data[1]
-    '''
+    # Remaining calculation steps repeated as before
     for i in range(h, len(data)):
-        if (i+p) < len(data): # this ignores signals where we don't have price_p_days_forward
-            if t=="Buy" and data[i][7]==1: # for buy signals
-                signal_dates.append(data[i][0]) # record the signal date
-                # calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
+        if (i+p) < len(data): # This ignores signals where we don't have price_p_days_forward
+            if t=="Buy" and data[i][7]==1: # For buy signals
+                signal_dates.append(data[i][0]) # Record the signal date
+                # Calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
                 price_at_signal = data[i][4]
                 price_p_days_forward = data[i+p][4]
                 pnl_per_share = price_p_days_forward - price_at_signal
-                # record the profit/loss per share
+                # Record the profit/loss per share
                 pnl_values.append(pnl_per_share)
             
-            elif t=="Sell" and data[i][8]==1:
-                signal_dates.append(data[i][0]) # record the signal date
-                # calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
+            elif t=="Sell" and data[i][8]==1: # For sell signals
+                signal_dates.append(data[i][0]) # Record the signal date
+                # Calculate the profit/loss per share based on the difference between the price at the signal and the price P days forward
                 price_at_signal = data[i][4]
                 price_p_days_forward = data[i+p][4]
                 pnl_per_share =  price_at_signal - price_p_days_forward
-                # record the profit/loss per share
+                # Record the profit/loss per share
                 pnl_values.append(pnl_per_share)
 
-    # create a list of lists to store the results - avoiding pandas dataframes
-    # result_list = [['Signal Date', 'Risk 95%', 'Risk 99%', 'Profit/Loss per Share']]
+    # Create a list of lists to store the results - avoiding pandas dataframes
     result_list = []
 
     for i in range(len(signal_dates)):
         result_list.append([signal_dates[i], risk95_values[i], risk99_values[i], pnl_values[i]])
 
-    # calculate the total profit/loss and average risk values
+    # Calculate the total profit/loss and average risk values
     total_pnl = sum(pnl_values)
     avg_var95 = sum(risk95_values) / len(risk95_values)
     avg_var99 = sum(risk99_values) / len(risk99_values)
 
-    return [result_list, total_pnl, avg_var95, avg_var99]
-    # return [result_list]
+    return [result_list, total_pnl, avg_var95, avg_var99] # Return a list of results and required values
 
 # define a function to use multiple instances of ec2
-def useec2_parallel(data, h, d, t, p, public_dns_names):
-    # Launch EC2 instances
-    # public_dns_names = launchec2(r)
-    # time.sleep(150)
-    # print("EC2 PARALLELLLLLLLLLLLLLLLLLLLLL")
-    # print(public_dns_names)
-    # print(type(public_dns_names[0]))
-    # Collect public DNS names of all instances
-    # public_dns_names = [i.public_dns_name for i in instances]
-    
+def useec2_parallel(data, h, d, t, p, public_dns_names):    
     # Create a list to store the results from all instances
     results = []
-    # for public_dns_name in public_dns_names:
-    #      results.append(useec2(public_dns_name, data, h, d, t, p))
 
     # Launch one thread for each instance to calculate the results
     with ThreadPoolExecutor(max_workers=len(public_dns_names)) as executor:
@@ -512,17 +368,11 @@ def useec2_parallel(data, h, d, t, p, public_dns_names):
             result = future.result()
             results.append(result)
 
-    # Combine the results from all instances
-    # combined_results = combine_results(results)
-
-    # Terminate all instances
-    # terminateec2(ec2_client, instances)
-
-    # Return the combined results
-    return results
+    return results # Return the combined results
 
 
 ###### FUNCTIONS FOR AUDIT ######
+# Define function to read the existing audit list from S3 bucket using boto3 with error handling
 def read_list_from_s3(bucket_name, file_name):
     try:
         s3 = boto3.client('s3')
@@ -534,11 +384,11 @@ def read_list_from_s3(bucket_name, file_name):
         print('Error reading list from S3:', str(e))
         return []
 
+# Define function to write the updated audit list to S3 bucket using boto3 with error handling
 def write_list_to_s3(bucket_name, file_name, data):
     try:
         s3 = boto3.client('s3')
         content = json.dumps(data)
         s3.put_object(Body=content, Bucket=bucket_name, Key=file_name)
-        print('List successfully written to S3.')
     except Exception as e:
         print('Error writing list to S3:', str(e))

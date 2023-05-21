@@ -1,3 +1,5 @@
+<!-- Homepage -->
+
 {% extends "_base.htm" %}
 
 {% block title %}
@@ -12,17 +14,25 @@
 		<h4>This web app analyses trade signals on the financial time series data of NFLX obtained from yahoo finance.<br/>
 			The trade signals are given by 'Three White Soldiers' and 'Three Black Crows' strategies.<br/>
 			95% and 99% risk values are determined for each trade signal using a monte carlo simulation.<br/>
-			The audit page stores results from all previous runs to estimate costs for resources.<br/></h4>
+			The audit page stores results from all previous runs to estimate costs for resources used.<br/></h4>
+
+		<!-- Adding a warning message -->
 		<h4>
 			<span style="color: rgb(255, 255, 255); background-color: #e41749; padding: 10px;">&#9888; Please initialize resources before calculations. Wait for confirmation before proceeding.</span>
 			<br/>
 		</h4>
-		<h4>Initialize again only if you need to change 'S' or 'R' values.</h4>
+		<h4>Resources will be initialized if 'S' and 'R' values are different from your previous run. Exisiting resources will be used if these values are the same.</h4>
 				</div>
-	
+<!-- Including forms asking for user input -->
 {% include 'initializeform.htm' %}
 {% include 'inputform.htm' %}
-
+	<!-- Adding a reminder message			 -->
+	<div id="up">
+		<h4>
+			<span style="color: rgb(255, 255, 255); background-color: #f2a600; padding: 10px;">&#9888; Remember to terminate all resources before leaving or changing 'S' and 'R' values.</span>
+		</h4>
+		<br>
+	</div>
 
 {% endblock %}
 
