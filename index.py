@@ -5,7 +5,7 @@ from flask import Flask, request, render_template, session
 import time
 import datetime
 # import functions from functions.py for improved readability
-from functions import fetch_stock_data, find_signals, make_img_url, averaging_results, launchec2, uselambda_parallel, useec2_parallel, read_list_from_s3, write_list_to_s3
+from functions import fetch_stock_data, find_signals, make_img_url, localcalculate, averaging_results, launchec2, uselambda_parallel, useec2_parallel, read_list_from_s3, write_list_to_s3
 # Ensuring correct credentials are picked up by boto3 by pointing before importing
 os.environ['AWS_SHARED_CREDENTIALS_FILE']='./cred' 
 import boto3
@@ -53,8 +53,15 @@ def calculateHandler():
 		if note1 or note2 or note3:
 			return doRender('index.htm', {'note1': note1, 'note2': note2, 'note3': note3})
 		else:
+			# For running simulations locally
+			if s == 'local':
+				starttime = time.time()
+				result_list, total_pnl, avg_var95, avg_var99 = localcalculate(data, h, d, t, p) # Get the test results
+				runtime = time.time() - starttime
+				cost = 0
+
 			# For lambda as chosen service
-			if s == 'lambda':
+			elif s == 'lambda':
 				starttime = time.time()
 				results = uselambda_parallel(data, h, d, t, p, r) # Call function to use lambda in parallel
 				runtime = time.time() - starttime
@@ -70,7 +77,7 @@ def calculateHandler():
 				result_list, total_pnl, avg_var95, avg_var99 = averaging_results(results) # Get the average results from all runs
 			
 			# Update the audit list after simulations are finished and results are obtained
-			s3 = boto3.client('s3')
+			#s3 = boto3.client('s3')
 			# Read the existing list from S3
 			bucket_name = 'audit-page-bucket'
 			file_name = 'audit.json'
@@ -131,7 +138,7 @@ def initializeHandler():
 @app.route('/audit', methods=['POST'])
 def auditHandler():
 	if request.method == 'POST':
-		s3 = boto3.client('s3')
+		#s3 = boto3.client('s3')
 		# Read the existing list from S3
 		bucket_name = 'audit-page-bucket'
 		file_name = 'audit.json'
