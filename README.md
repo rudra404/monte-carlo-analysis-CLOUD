@@ -33,23 +33,23 @@ The deployed app will not work on the cloud services at this time, however you m
 
 ## Start the app
 Within the root directory, use the following command to start the application:
-
-$ python index.py
-
+```
+python index.py
+```
 
 ## Test the app
 1. Once you start the flask app, it will run on localhost. The terminal confirms 'Running on http://127.0.0.1:8080/ '. Enter this in the browser to access the application.
 2. Enter the following example values to do a trial run:<br />
-    a. S: Run Locally
-    b. R: 4
-3. Click on 'Initialize' before entering other values and wait for the green confirmation button.
+    a. S: Run Locally<br />
+    b. R: 4<br />
+3. Click on 'Initialize' before entering other values and wait for the green confirmation button.<br />
 4. Enter the remaining values:<br />
-    c. H: 30
-    d. D: 200
-    e. T: Buy
-    f. P: 30
-5. Click on the 'Calculate' button to view the results page with relevant graph and results tables.
-6. You may now click the 'Reset' button to start new calculations with your own values. 
+    c. H: 30<br />
+    d. D: 200<br />
+    e. T: Buy<br />
+    f. P: 30<br />
+5. Click on the 'Calculate' button to view the results page with relevant graph and results tables.<br />
+6. You may now click the 'Reset' button to start new calculations with your own values. <br />
 
 Note: the audit page will also not display anything as this S3 bucket will not be functional after trial has ended.
 
