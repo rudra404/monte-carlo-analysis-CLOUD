@@ -1,5 +1,5 @@
 # Monte Carlo Analysis on the Cloud
-The aim of this project is to demonstrate my understanding of how to critically explain, and construct, a Cloud application using multiple services across Cloud providers (AWS lambda, EC2, S3, and Google App Engine), involving user-specifiable scaling.
+The aim of this project is to demonstrate my understanding of how to critically explain, and construct, a Cloud application using multiple services across Cloud providers (AWS lambda, EC2, S3, and Google App Engine), involving user-specifiable scaling. A basic supporting UI is also designed.
 
 The flask web app analyses trade signals on the financial time series data of NFLX obtained from yahoo finance.
 The trade signals are given by 'Three White Soldiers' and 'Three Black Crows' strategies.
@@ -19,7 +19,7 @@ All the result values and estimated costs (based on resource type chosen) will b
 
 ## Quick look
 
-This is a quick run showing 4 lambda functions called in parallel. <br /><br />
+This is a quick run showing 4 lambda functions called in parallel. More screenshots can be found in the 'screencaps' folder.<br /><br />
 ![](screencaps/montecarloapp.gif) <br /><br />
 
 The audit page would look like this, showing results and costs for all previous runs:<br /><br />
