@@ -33,9 +33,9 @@ The deployed app will not work on the cloud services at this time, however you m
 
 ## Start the app
 Within the root directory, use the following command to start the application:
-'''
-python index.py
-'''
+
+$ python index.py
+
 
 ## Test the app
 1. Once you start the flask app, it will run on localhost. The terminal confirms 'Running on http://127.0.0.1:8080/ '. Enter this in the browser to access the application.
