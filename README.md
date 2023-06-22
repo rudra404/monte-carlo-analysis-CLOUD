@@ -19,10 +19,11 @@ All the result values and estimated costs (based on resource type chosen) will b
 
 ## Quick look
 
-Registration, authentication, login functionality. <br /><br />
-![](screencaps/login.gif) <br /><br />
-What the app looks like after logging in. <br /><br />
-![](screencaps/appfunctions.gif) <br /><br />
+This is a quick run showing 4 lambda functions called in parallel. <br /><br />
+![](screencaps/montecarloapp.gif) <br /><br />
+
+The audit page would look like this, showing results and costs for all previous runs:<br /><br />
+![](screencaps/auditpage.png) <br /><br />
 
 ## Pre-requisites
 
